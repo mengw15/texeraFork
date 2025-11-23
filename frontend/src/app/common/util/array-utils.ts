@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,22 +17,19 @@
  * under the License.
  */
 
-package org.apache.amber.engine.architecture.deploysemantics.deploystrategy
+/**
+ * Immutable helpers for array updates.
+ */
 
-import org.apache.pekko.actor.Address
-
-object RandomDeployment {
-  def apply() = new RandomDeployment()
-}
-
-class RandomDeployment extends DeployStrategy {
-  var available: Array[Address] = _
-
-  override def initialize(available: Array[Address]): Unit = {
-    this.available = available
-  }
-
-  override def next(): Address = {
-    available(util.Random.nextInt(available.length))
-  }
+// Returns a array with an element edited (original array not mutated)
+export function replaceOneImmutable<T>(
+  arr: ReadonlyArray<T>,
+  predicate: (t: T, idx: number) => boolean,
+  item: T
+): ReadonlyArray<T> {
+  const idx = arr.findIndex(predicate);
+  if (idx < 0) return arr;
+  const next = arr.slice();
+  (next as T[])[idx] = item;
+  return next;
 }
