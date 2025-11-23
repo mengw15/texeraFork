@@ -194,6 +194,7 @@ workflowComputingUnitPool:
     memory: 100Gi
     nvidiaGpu: 5
   imageName: texera/computing-unit-master:cluster
+  workerImageName: texera/computing-unit-worker:cluster
   service:
     port: 8085
     targetPort: 8085

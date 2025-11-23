@@ -119,6 +119,8 @@ COPY --from=build /texera/amber/target/amber-* /texera/amber/
 # Copy resources directories from build phase
 COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
 COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/config/src/main/resources
+# Copy code for python & R UDF
+COPY --from=build /texera/amber/src/main/python /texera/amber/src/main/python
 
 CMD ["bin/computing-unit-worker"]
 

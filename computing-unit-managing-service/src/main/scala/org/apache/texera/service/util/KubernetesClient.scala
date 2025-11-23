@@ -141,6 +141,8 @@ object KubernetesClient {
       .addNewPort()
       .withContainerPort(KubernetesConfig.computeUnitPortNumber)
       .endPort()
+      .withCommand("bin/computing-unit-master")
+      .withArgs("--cluster", "true")
       .withEnv(envList)
       .withResources(resourceBuilder.build())
 
@@ -154,6 +156,32 @@ object KubernetesClient {
     }
 
     containerBuilder.endContainer()
+
+    // Add worker container
+    val workerContainerBuilder = specBuilder
+      .addNewContainer()
+      .withName("computing-unit-worker")
+      .withImage(KubernetesConfig.computeUnitWorkerImageName)
+      .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
+      .addNewPort()
+      .withContainerPort(KubernetesConfig.computeUnitPortNumber)
+      .endPort()
+      .withCommand("bin/computing-unit-worker")
+      .withArgs("--serverAddr", "localhost")
+      .withEnv(envList)
+      .withResources(resourceBuilder.build())
+
+    // If shmSize requested, mount /dev/shm for worker container too
+    shmSize.foreach { _ =>
+      workerContainerBuilder
+        .addNewVolumeMount()
+        .withName("dshm")
+        .withMountPath("/dev/shm")
+        .endVolumeMount()
+    }
+
+    workerContainerBuilder.endContainer()
+
 
     // Add tmpfs volume if needed
     shmSize.foreach { size =>

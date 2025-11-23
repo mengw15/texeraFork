@@ -21,13 +21,13 @@ package org.apache.amber.engine.common
 
 import akka.actor.{ActorSystem, Address, Cancellable, DeadLetter, Props}
 import akka.serialization.{Serialization, SerializationExtension}
+import com.typesafe.config.ConfigFactory.defaultApplication
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.amber.clustering.ClusterListener
-import org.apache.amber.config.AkkaConfig
 import org.apache.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 import java.io.{BufferedReader, InputStreamReader}
-import java.net.URL
+import java.net.{InetAddress, URL}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
@@ -56,7 +56,7 @@ object AmberRuntime {
   }
 
   def scheduleRecurringCallThroughActorSystem(initialDelay: FiniteDuration, delay: FiniteDuration)(
-      call: => Unit
+    call: => Unit
   ): Cancellable = {
     _actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => call)
   }
@@ -65,7 +65,9 @@ object AmberRuntime {
     try {
       val query = new URL("http://checkip.amazonaws.com")
       val in = new BufferedReader(new InputStreamReader(query.openStream()))
-      in.readLine()
+      val ip = in.readLine()
+      val localIp = InetAddress.getLocalHost().getHostAddress()
+      ip
     } catch {
       case e: Exception => throw e
     }
@@ -74,22 +76,50 @@ object AmberRuntime {
   def startActorMaster(clusterMode: Boolean): Unit = {
     var localIpAddress = "localhost"
     if (clusterMode) {
-      localIpAddress = getNodeIpAddress
-    }
+      // Check if running in Pod mode (with Worker container in same Pod)
+      // This is controlled by AKKA_POD_MODE environment variable
+      val isPodMode = true
 
-    val masterConfig = ConfigFactory
-      .parseString(s"""
+      val (canonicalHostname, bindHostname, seedNodeAddress) = if (isPodMode) {
+        // Pod mode: Master and Worker are in the same Pod, use localhost for communication
+        // Bind to 0.0.0.0 to accept connections from localhost
+        // Skip getNodeIpAddress() call as it may fail in Kubernetes Pods
+        ("localhost", "0.0.0.0", "akka://Amber@localhost:2552")
+      } else {
+        // External mode: Master and Worker may be in different Pods/nodes, use external IP
+        localIpAddress = getNodeIpAddress
+        val localPrivateIdAddress = InetAddress.getLocalHost().getHostAddress()
+        (localIpAddress, localPrivateIdAddress, s"akka://Amber@$localIpAddress:2552")
+      }
+
+      val masterConfig = ConfigFactory
+        .parseString(s"""
+              akka.remote.artery.canonical.port = 2552
+              akka.remote.artery.canonical.hostname = $canonicalHostname
+              akka.remote.artery.bind.hostname = $bindHostname
+              akka.remote.artery.bind.port = 2552
+              akka.cluster.seed-nodes = [ "$seedNodeAddress" ]
+              """)
+        .withFallback(akkaConfig)
+        .resolve()
+      AmberConfig.masterNodeAddr = createMasterAddress(canonicalHostname)
+      createAmberSystem(masterConfig)
+    } else {
+      val masterConfig = ConfigFactory
+        .parseString(s"""
         akka.remote.artery.canonical.port = 2552
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
-      .withFallback(akkaConfig)
-      .resolve()
-    AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
-    createAmberSystem(masterConfig)
+        .withFallback(akkaConfig)
+        .resolve()
+      AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
+      createAmberSystem(masterConfig)
+    }
   }
 
-  def akkaConfig: Config = AkkaConfig.akkaConfig
+  def akkaConfig: Config =
+    ConfigFactory.load("cluster").withFallback(defaultApplication()).resolve()
 
   private def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 
@@ -97,18 +127,44 @@ object AmberRuntime {
     val addr = mainNodeAddress.getOrElse("localhost")
     var localIpAddress = "localhost"
     if (mainNodeAddress.isDefined) {
-      localIpAddress = getNodeIpAddress
-    }
-    val workerConfig = ConfigFactory
-      .parseString(s"""
+      // In Pod mode (when connecting to localhost), skip getNodeIpAddress() call
+      // as it may fail in Kubernetes Pods
+      val isPodMode = addr == "localhost"
+      
+      val (canonicalHostname, bindHostname) = if (isPodMode) {
+        // Pod mode: use localhost, bind to 0.0.0.0 to accept connections
+        ("localhost", "0.0.0.0")
+      } else {
+        // External mode: get external IP
+        localIpAddress = getNodeIpAddress
+        val localPrivateIdAddress = InetAddress.getLocalHost().getHostAddress()
+        (localIpAddress, localPrivateIdAddress)
+      }
+
+      val workerConfig = ConfigFactory
+        .parseString(s"""
+              akka.remote.artery.canonical.hostname = $canonicalHostname
+              akka.remote.artery.canonical.port = 0
+              akka.remote.artery.bind.hostname = $bindHostname
+              akka.remote.artery.bind.port = 0
+              akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
+              """)
+        .withFallback(akkaConfig)
+        .resolve()
+      AmberConfig.masterNodeAddr = createMasterAddress(addr)
+      createAmberSystem(workerConfig)
+    } else {
+      val workerConfig = ConfigFactory
+        .parseString(s"""
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.remote.artery.canonical.port = 0
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
-      .withFallback(akkaConfig)
-      .resolve()
-    AmberConfig.masterNodeAddr = createMasterAddress(addr)
-    createAmberSystem(workerConfig)
+        .withFallback(akkaConfig)
+        .resolve()
+      AmberConfig.masterNodeAddr = createMasterAddress(addr)
+      createAmberSystem(workerConfig)
+    }
   }
 
   private def createAmberSystem(actorSystemConf: Config): Unit = {
