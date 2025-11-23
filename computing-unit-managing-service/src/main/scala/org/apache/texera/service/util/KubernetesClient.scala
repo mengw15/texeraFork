@@ -155,6 +155,14 @@ object KubernetesClient {
         .endVolumeMount()
     }
 
+    // Mount shared volume for Iceberg data files (needed for both master and worker)
+    // Mount to /amber/user-resources to match docker-compose configuration
+    containerBuilder
+      .addNewVolumeMount()
+      .withName("workflow-results")
+      .withMountPath("/amber/user-resources")
+      .endVolumeMount()
+
     containerBuilder.endContainer()
 
     // Add worker container
@@ -180,6 +188,14 @@ object KubernetesClient {
         .endVolumeMount()
     }
 
+    // Mount shared volume for Iceberg data files (needed for worker to access files created by master)
+    // Mount to /amber/user-resources to match docker-compose configuration
+    workerContainerBuilder
+      .addNewVolumeMount()
+      .withName("workflow-results")
+      .withMountPath("/amber/user-resources")
+      .endVolumeMount()
+
     workerContainerBuilder.endContainer()
 
 
@@ -196,6 +212,14 @@ object KubernetesClient {
         )
         .endVolume()
     }
+
+    // Add shared EmptyDir volume for workflow results (Iceberg data files)
+    // This allows both master and worker containers to access the same files
+    specBuilder
+      .addNewVolume()
+      .withName("workflow-results")
+      .withEmptyDir(new EmptyDirVolumeSource())
+      .endVolume()
 
     val pod = specBuilder
       .withHostname(podName)
