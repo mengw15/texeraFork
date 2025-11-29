@@ -66,6 +66,11 @@ object ComputingUnitManagingResource {
 
   // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] = Map(
+    // Set TEXERA_HOME to /texera to match the volume mount path
+    // Container working directory is /texera/amber, so TEXERA_HOME="." would result in
+    // /texera/amber/amber/user-resources/workflow-results (wrong path)
+    // Setting TEXERA_HOME="/texera" results in /texera/amber/user-resources/workflow-results (correct)
+//    "TEXERA_HOME" -> "/texera",
     // Variables for saving results to Iceberg
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME -> StorageConfig.icebergPostgresCatalogUriWithoutScheme,

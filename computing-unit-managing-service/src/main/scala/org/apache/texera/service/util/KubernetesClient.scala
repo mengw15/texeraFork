@@ -156,11 +156,11 @@ object KubernetesClient {
     }
 
     // Mount shared volume for Iceberg data files (needed for both master and worker)
-    // Mount to /amber/user-resources to match docker-compose configuration
+    // Mount to /texera/amber/user-resources (parent directory) so that workflow-results subdirectory is accessible
     containerBuilder
       .addNewVolumeMount()
       .withName("workflow-results")
-      .withMountPath("/amber/user-resources")
+      .withMountPath("/texera/amber/amber/user-resources")
       .endVolumeMount()
 
     containerBuilder.endContainer()
@@ -189,11 +189,11 @@ object KubernetesClient {
     }
 
     // Mount shared volume for Iceberg data files (needed for worker to access files created by master)
-    // Mount to /amber/user-resources to match docker-compose configuration
+    // Mount to /texera/amber/user-resources (parent directory) so that workflow-results subdirectory is accessible
     workerContainerBuilder
       .addNewVolumeMount()
       .withName("workflow-results")
-      .withMountPath("/amber/user-resources")
+      .withMountPath("/texera/amber/amber/user-resources")
       .endVolumeMount()
 
     workerContainerBuilder.endContainer()

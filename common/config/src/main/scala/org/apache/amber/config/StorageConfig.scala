@@ -84,12 +84,25 @@ object StorageConfig {
   )
 
   // File storage configurations
-  val fileStorageDirectoryPath: Path =
-    Path
-      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+  val fileStorageDirectoryPath: Path = {
+    val texeraHome = sys.env.getOrElse("TEXERA_HOME", ".")
+    val path = Path
+      .of(texeraHome)
       .resolve("amber")
       .resolve("user-resources")
       .resolve("workflow-results")
+    
+    // Print for debugging in pod containers
+    println("=" * 80)
+    println("[StorageConfig] TEXERA_HOME: " + texeraHome)
+    println("[StorageConfig] fileStorageDirectoryPath (relative): " + path)
+    println("[StorageConfig] fileStorageDirectoryPath (absolute): " + path.toAbsolutePath)
+    println("[StorageConfig] fileStorageDirectoryPath (normalized): " + path.toAbsolutePath.normalize())
+    println("=" * 80)
+    
+    path
+  }
+
 
   // JDBC
   val ENV_JDBC_URL = "STORAGE_JDBC_URL"

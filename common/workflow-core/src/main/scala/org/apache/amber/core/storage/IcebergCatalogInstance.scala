@@ -43,21 +43,25 @@ object IcebergCatalogInstance {
     instance match {
       case Some(catalog) => catalog
       case None =>
+        val warehousePath = StorageConfig.fileStorageDirectoryPath
+        println("-------")
+        println(s"[IcebergCatalogInstance] Initializing catalog with warehouse path: ${warehousePath.toAbsolutePath.normalize()}")
+        println("-------")
         val catalog = StorageConfig.icebergCatalogType match {
           case "hadoop" =>
             IcebergUtil.createHadoopCatalog(
               "texera_iceberg",
-              StorageConfig.fileStorageDirectoryPath
+              warehousePath
             )
           case "rest" =>
             IcebergUtil.createRestCatalog(
               "texera_iceberg",
-              StorageConfig.fileStorageDirectoryPath
+              warehousePath
             )
           case "postgres" =>
             IcebergUtil.createPostgresCatalog(
               "texera_iceberg",
-              StorageConfig.fileStorageDirectoryPath
+              warehousePath
             )
           case unsupported =>
             throw new IllegalArgumentException(s"Unsupported catalog type: $unsupported")
