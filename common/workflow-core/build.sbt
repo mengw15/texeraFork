@@ -150,6 +150,10 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
+  "org.apache.iceberg" % "iceberg-aws" % "1.7.1" excludeAll(
+    excludeJackson,
+    excludeJacksonModule
+  ),
   "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
@@ -193,4 +197,5 @@ libraryDependencies ++= Seq(
   ),
   "software.amazon.awssdk" % "auth" % "2.29.51",
   "software.amazon.awssdk" % "regions" % "2.29.51",
+  "software.amazon.awssdk" % "sts" % "2.29.51",
 )
