@@ -1,0 +1,1 @@
+../../../sql/iceberg_catalog.sql

@@ -36,10 +36,10 @@ data:
     psql -U postgres -f /tmp/texera_lakefs.sql
 
     echo "Initializing Iceberg catalog database..."
-    cat <<'EOF' > /tmp/iceberg_postgres_catalog.sql
-{{ .Files.Get "files/iceberg_postgres_catalog.sql" | indent 6 }}
+    cat <<'EOF' > /tmp/iceberg_catalog.sql
+{{ .Files.Get "files/iceberg_catalog.sql" | indent 6 }}
     EOF
-    psql -U postgres -f /tmp/iceberg_postgres_catalog.sql
+    psql -U postgres -f /tmp/iceberg_catalog.sql
 
     echo "Initializing Texera database..."
     cat <<'EOF' > /tmp/texera_ddl.sql

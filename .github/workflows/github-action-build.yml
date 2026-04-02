@@ -127,7 +127,7 @@ jobs:
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
-          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/iceberg_catalog.sql
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
@@ -168,7 +168,7 @@ jobs:
         run: sudo systemctl start postgresql
       - name: Create Database and User
         run: |
-          cd sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
+          cd sql && sudo -u postgres psql -f iceberg_catalog.sql
       - name: Lint with Ruff
         run: |
           cd amber/src/main/python && ruff check . && ruff format --check .

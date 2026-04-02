@@ -37,10 +37,8 @@ set -e
 LAKEKEEPER_BINARY_PATH=""
 
 # Lakekeeper PostgreSQL connection URLs
-#(LAKEKEEPER__PG_DATABASE_URL_READ="postgres://postgres_user:postgres_urlencoded_password@hostname:5432/texera_lakekeeper"
-# LAKEKEEPER__PG_DATABASE_URL_WRITE="postgres://postgres_user:postgres_urlencoded_password@hostname:5432/texera_lakekeeper")
-LAKEKEEPER__PG_DATABASE_URL_READ=""
-LAKEKEEPER__PG_DATABASE_URL_WRITE=""
+LAKEKEEPER__PG_DATABASE_URL_READ="postgres://texera:password@localhost:5432/texera_iceberg_catalog"
+LAKEKEEPER__PG_DATABASE_URL_WRITE="postgres://texera:password@localhost:5432/texera_iceberg_catalog"
 
 # Lakekeeper encryption key
 LAKEKEEPER__PG_ENCRYPTION_KEY="texera_key"
