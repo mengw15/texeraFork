@@ -82,6 +82,7 @@ import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.video.VideoFileSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
@@ -94,6 +95,7 @@ import org.apache.texera.amber.operator.udf.python._
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 import org.apache.texera.amber.operator.udf.r.{RUDFOpDesc, RUDFSourceOpDesc}
 import org.apache.texera.amber.operator.union.UnionOpDesc
+import org.apache.texera.amber.operator.vision.VisionLLMFrameOpDesc
 import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.DotPlot.DotPlotOpDesc
 import org.apache.texera.amber.operator.visualization.IcicleChart.IcicleChartOpDesc
@@ -139,6 +141,7 @@ import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDes
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.texera.amber.operator.visualization.urlviz.UrlVizOpDesc
+import org.apache.texera.amber.operator.visualization.videoTimeline.VideoTimelineSinkOpDesc
 import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import org.apache.texera.amber.operator.visualization.windRoseChart.WindRoseChartOpDesc
@@ -428,7 +431,10 @@ trait StateTransferFunc
       value = classOf[SklearnAdvancedSVRTrainerOpDesc],
       name = "SVRTrainer"
     ),
-    new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting")
+    new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting"),
+    new Type(value = classOf[VideoFileSourceOpDesc], name = "VideoFileSource"),
+    new Type(value = classOf[VisionLLMFrameOpDesc], name = "VisionLLMFrame"),
+    new Type(value = classOf[VideoTimelineSinkOpDesc], name = "VideoTimeline")
   )
 )
 abstract class LogicalOp extends PortDescriptor with Serializable {
