@@ -87,6 +87,7 @@
             [(ngModel)]="newComputingUnitName"
             class="unit-name-input" />
         </div>
+
         <div class="select-unit">
           <span>Select RAM Size</span>
           <nz-select
@@ -213,6 +214,41 @@
             class="unit-uri-input" />
         </div>
       </ng-container>
+
+      <div
+        *ngIf="byoEnabled && selectedComputingUnitType"
+        class="select-unit">
+        <span>
+          Warehouse
+          <i
+            nz-icon
+            nzType="info-circle"
+            nz-tooltip
+            nzTooltipTitle="Pick which of your registered S3 warehouses this computing unit will read & write Iceberg tables from."></i>
+        </span>
+        <nz-select
+          *ngIf="warehouses.length > 0"
+          [(ngModel)]="selectedWhid"
+          nzPlaceHolder="Select a warehouse">
+          <nz-option
+            *ngFor="let w of warehouses"
+            [nzValue]="w.whid"
+            [nzLabel]="w.name + ' (' + w.s3Bucket + ')'">
+          </nz-option>
+        </nz-select>
+        <nz-alert
+          *ngIf="warehouses.length === 0"
+          nzType="warning"
+          nzShowIcon
+          nzMessage="No warehouses configured"
+          [nzDescription]="warehouseEmptyTpl">
+        </nz-alert>
+        <ng-template #warehouseEmptyTpl>
+          Register an S3 bucket in the
+          <a (click)="goToWarehouseTab()">Warehouse tab</a>
+          before creating a computing unit.
+        </ng-template>
+      </div>
     </div>
   </ng-template>
   <ng-template #addComputeUnitModalFooter>
@@ -225,6 +261,7 @@
     <button
       nz-button
       nzType="primary"
+      [disabled]="!isWarehouseSelectionValid()"
       (click)="handleAddComputeUnitModalOk()">
       Create
     </button>

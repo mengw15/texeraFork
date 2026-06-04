@@ -110,6 +110,18 @@
             <span>Compute</span>
           </li>
           <li
+            *ngIf="byoEnabled"
+            nz-menu-item
+            nz-tooltip="Configure your S3 warehouse"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_WAREHOUSE">
+            <span
+              nz-icon
+              nzType="cloud-server"></span>
+            <span>Warehouse</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.quota_enabled"
             nz-menu-item
             nz-tooltip="Quota information"

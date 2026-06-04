@@ -18,8 +18,11 @@
  */
 
 import { Component, Input, OnInit } from "@angular/core";
+import { Router } from "@angular/router";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { DASHBOARD_USER_WAREHOUSE } from "../../../../app-routing.constant";
 import { DashboardEntry } from "../../../type/dashboard-entry";
+import { WarehouseInfo, WarehouseService } from "../../../service/user/warehouse/warehouse.service";
 import {
   DashboardWorkflowComputingUnit,
   WorkflowComputingUnitType,
@@ -119,13 +122,20 @@ export class UserComputingUnitComponent implements OnInit {
   memoryOptions: string[] = [];
   gpuOptions: string[] = []; // Add GPU options array
 
+  // BYO-S3 warehouse picker
+  byoEnabled = false;
+  warehouses: WarehouseInfo[] = [];
+  selectedWhid?: number;
+
   constructor(
     private notificationService: NotificationService,
     private modalService: NzModalService,
     private userService: UserService,
     private computingUnitService: WorkflowComputingUnitManagingService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    private computingUnitActionsService: ComputingUnitActionsService
+    private computingUnitActionsService: ComputingUnitActionsService,
+    private warehouseService: WarehouseService,
+    private router: Router
   ) {
     this.userService
       .userChanged()
@@ -184,6 +194,40 @@ export class UserComputingUnitComponent implements OnInit {
         this.allComputingUnits = units;
         this.entries = units.map(u => new DashboardEntry(u));
       });
+
+    this.warehouseService
+      .getStatus()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: status => {
+          this.byoEnabled = status.byoEnabled;
+          this.warehouses = status.warehouses;
+          // Auto-select if exactly one warehouse exists.
+          if (this.warehouses.length === 1) {
+            this.selectedWhid = this.warehouses[0].whid;
+          }
+        },
+        error: () => {
+          // Non-fatal: leave the picker empty. The backend will reject the
+          // CU creation with a clear error if BYO is on and whid is missing.
+        },
+      });
+  }
+
+  goToWarehouseTab(): void {
+    this.modalService.closeAll();
+    this.router.navigate([DASHBOARD_USER_WAREHOUSE]);
+  }
+
+  isWarehouseRequired(): boolean {
+    return this.byoEnabled;
+  }
+
+  isWarehouseSelectionValid(): boolean {
+    if (!this.isWarehouseRequired()) {
+      return true;
+    }
+    return this.selectedWhid !== undefined && this.warehouses.some(w => w.whid === this.selectedWhid);
   }
 
   terminateComputingUnit(cuid: number): void {
@@ -213,6 +257,11 @@ export class UserComputingUnitComponent implements OnInit {
       return;
     }
 
+    if (!this.isWarehouseSelectionValid()) {
+      this.notificationService.error("Please select a warehouse for this computing unit.");
+      return;
+    }
+
     const request = {
       type: this.selectedComputingUnitType,
       name: this.newComputingUnitName,
@@ -222,6 +271,7 @@ export class UserComputingUnitComponent implements OnInit {
       jvmMemorySize: this.selectedJvmMemorySize,
       shmSize: `${this.shmSizeValue}${this.shmSizeUnit}`,
       localUri: this.localComputingUnitUri,
+      whid: this.isWarehouseRequired() ? this.selectedWhid : undefined,
     };
 
     this.computingUnitActionsService

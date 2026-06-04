@@ -1,0 +1,33 @@
+.warehouse-container {
+  padding: 24px;
+  max-width: 960px;
+}
+
+.warehouse-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.warehouse-alert {
+  margin-bottom: 16px;
+}
+
+.warehouse-form-card {
+  margin-bottom: 16px;
+}
+
+.warehouse-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.warehouse-table {
+  margin-top: 16px;
+}

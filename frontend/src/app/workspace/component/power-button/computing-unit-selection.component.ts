@@ -38,6 +38,12 @@ import { ShareAccessComponent } from "../../../dashboard/component/user/share-ac
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import {
+  WarehouseInfo,
+  WarehouseService,
+} from "../../../dashboard/service/user/warehouse/warehouse.service";
+import { Router } from "@angular/router";
+import { DASHBOARD_USER_WAREHOUSE } from "../../../app-routing.constant";
+import {
   ComputingUnitMetadataComponent,
   parseResourceUnit,
   parseResourceNumber,
@@ -179,6 +185,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
   memoryOptions: string[] = [];
   gpuOptions: string[] = []; // Add GPU options array
 
+  // BYO-S3 warehouse picker
+  byoEnabled = false;
+  warehouses: WarehouseInfo[] = [];
+  selectedWhid?: number;
+
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
@@ -190,6 +201,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private computingUnitActionsService: ComputingUnitActionsService,
     private workflowPveService: WorkflowPveService,
+    private warehouseService: WarehouseService,
+    private router: Router,
     private ngZone: NgZone
   ) {}
 
@@ -259,7 +272,39 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.allComputingUnits = units;
       });
 
+    this.warehouseService
+      .getStatus()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: status => {
+          this.byoEnabled = status.byoEnabled;
+          this.warehouses = status.warehouses;
+          if (this.warehouses.length === 1) {
+            this.selectedWhid = this.warehouses[0].whid;
+          }
+        },
+        error: () => {
+          this.byoEnabled = false;
+        },
+      });
+
     this.registerWorkflowMetadataSubscription();
+  }
+
+  goToWarehouseTab(): void {
+    this.modalService.closeAll();
+    this.router.navigate([DASHBOARD_USER_WAREHOUSE]);
+  }
+
+  isWarehouseRequired(): boolean {
+    return this.byoEnabled;
+  }
+
+  isWarehouseSelectionValid(): boolean {
+    if (!this.isWarehouseRequired()) {
+      return true;
+    }
+    return this.selectedWhid !== undefined && this.warehouses.some(w => w.whid === this.selectedWhid);
   }
 
   /**
@@ -411,6 +456,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
       return;
     }
 
+    if (!this.isWarehouseSelectionValid()) {
+      this.notificationService.error("Please select a warehouse for this computing unit.");
+      return;
+    }
+
     const request = {
       type: this.selectedComputingUnitType,
       name: this.newComputingUnitName,
@@ -420,6 +470,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       jvmMemorySize: this.selectedJvmMemorySize,
       shmSize: `${this.shmSizeValue}${this.shmSizeUnit}`,
       localUri: this.localComputingUnitUri,
+      whid: this.isWarehouseRequired() ? this.selectedWhid : undefined,
     };
 
     this.computingUnitActionsService

@@ -74,6 +74,7 @@ DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
 DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
+DROP TABLE IF EXISTS user_warehouse CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -434,6 +435,36 @@ CREATE TABLE IF NOT EXISTS computing_unit_user_access
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
+
+-- user_warehouse table
+-- A user can register multiple Lakekeeper warehouses (BYO-S3 mode), one per
+-- bucket they own. CU creation lets the user pick which warehouse to use,
+-- analogous to picking a CU resource preset. Raw S3 credentials are NEVER
+-- stored here — they live encrypted inside Lakekeeper's own DB
+-- (LAKEKEEPER__PG_ENCRYPTION_KEY). We only persist the user-friendly name,
+-- the Lakekeeper warehouse name (used as env var injected into CU pods),
+-- the Lakekeeper-assigned warehouse-id (used for delete API calls), and S3
+-- metadata for display purposes.
+CREATE TABLE IF NOT EXISTS user_warehouse
+(
+    whid                     SERIAL       PRIMARY KEY,
+    uid                      INT          NOT NULL,
+    name                     VARCHAR(128) NOT NULL,
+    warehouse_name           VARCHAR(256) NOT NULL UNIQUE,
+    lakekeeper_warehouse_id  UUID         NOT NULL,
+    flavor                   VARCHAR(16)  NOT NULL,
+    s3_bucket                VARCHAR(256) NOT NULL,
+    s3_endpoint              VARCHAR(512),
+    s3_region                VARCHAR(64)  NOT NULL,
+    created_at               TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    UNIQUE (uid, name),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    CONSTRAINT chk_user_warehouse_flavor CHECK (flavor IN ('aws', 's3-compat')),
+    CONSTRAINT chk_user_warehouse_endpoint
+        CHECK ((flavor = 'aws' AND s3_endpoint IS NULL) OR
+               (flavor = 's3-compat' AND s3_endpoint IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_user_warehouse_uid ON user_warehouse(uid);
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;

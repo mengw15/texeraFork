@@ -39,6 +39,13 @@ object StorageConfig {
   val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
   val icebergRESTCatalogWarehouseName: String =
     conf.getString("storage.iceberg.catalog.rest.warehouse-name")
+  // When true, per-user warehouse creation is required via the Warehouse dashboard tab.
+  val icebergRESTCatalogByoS3: Boolean =
+    conf.getBoolean("storage.iceberg.catalog.rest.byo-s3")
+
+  // Lakekeeper management API — base URI without trailing slash, e.g. http://texera-lakekeeper:8181
+  val lakekeeperManagementUri: String =
+    conf.getString("storage.lakekeeper.management-uri").stripSuffix("/")
 
   // Iceberg Postgres specifics
   val icebergPostgresCatalogUriWithoutScheme: String =

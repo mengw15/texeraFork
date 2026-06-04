@@ -27,6 +27,7 @@ import { HubComponent } from "../../hub/component/hub.component";
 import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
+import { WarehouseService } from "../service/user/warehouse/warehouse.service";
 
 import {
   DASHBOARD_ABOUT,
@@ -39,6 +40,7 @@ import {
   DASHBOARD_USER_DISCUSSION,
   DASHBOARD_USER_PROJECT,
   DASHBOARD_USER_QUOTA,
+  DASHBOARD_USER_WAREHOUSE,
   DASHBOARD_USER_WORKFLOW,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
@@ -90,6 +92,7 @@ export class DashboardComponent implements OnInit {
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
+  byoEnabled: boolean = false;
   sidebarTabs: SidebarTabs = {
     hub_enabled: false,
     home_enabled: false,
@@ -100,6 +103,7 @@ export class DashboardComponent implements OnInit {
     workflows_enabled: false,
     datasets_enabled: false,
     compute_enabled: false,
+    warehouse_enabled: false,
     quota_enabled: false,
     forum_enabled: false,
     about_enabled: false,
@@ -109,6 +113,7 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
   protected readonly DASHBOARD_USER_COMPUTING_UNIT = DASHBOARD_USER_COMPUTING_UNIT;
+  protected readonly DASHBOARD_USER_WAREHOUSE = DASHBOARD_USER_WAREHOUSE;
   protected readonly DASHBOARD_USER_QUOTA = DASHBOARD_USER_QUOTA;
   protected readonly DASHBOARD_USER_DISCUSSION = DASHBOARD_USER_DISCUSSION;
   protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
@@ -124,7 +129,8 @@ export class DashboardComponent implements OnInit {
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
-    protected config: GuiConfigService
+    protected config: GuiConfigService,
+    private warehouseService: WarehouseService
   ) {}
 
   ngOnInit(): void {
@@ -166,6 +172,14 @@ export class DashboardComponent implements OnInit {
     this.loadLogos();
 
     this.loadTabs();
+
+    this.warehouseService
+      .getStatus()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: status => (this.byoEnabled = status.byoEnabled),
+        error: () => (this.byoEnabled = false),
+      });
   }
 
   loadLogos(): void {

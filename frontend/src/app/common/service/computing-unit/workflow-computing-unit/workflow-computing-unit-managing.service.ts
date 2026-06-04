@@ -84,9 +84,22 @@ export class WorkflowComputingUnitManagingService {
     jvmMemorySize: string,
     shmSize: string,
     uri: string,
-    unitType: "kubernetes" | "local"
+    unitType: "kubernetes" | "local",
+    whid?: number
   ): Observable<DashboardWorkflowComputingUnit> {
-    const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, shmSize, uri, unitType };
+    const body: Record<string, unknown> = {
+      name,
+      cpuLimit,
+      memoryLimit,
+      gpuLimit,
+      jvmMemorySize,
+      shmSize,
+      uri,
+      unitType,
+    };
+    if (whid !== undefined) {
+      body.whid = whid;
+    }
 
     return this.http
       .post<DashboardWorkflowComputingUnit>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`, body)
@@ -110,9 +123,20 @@ export class WorkflowComputingUnitManagingService {
     memoryLimit: string,
     gpuLimit: string,
     jvmMemorySize: string,
-    shmSize: string
+    shmSize: string,
+    whid?: number
   ): Observable<DashboardWorkflowComputingUnit> {
-    return this.createComputingUnit(name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, shmSize, "", "kubernetes");
+    return this.createComputingUnit(
+      name,
+      cpuLimit,
+      memoryLimit,
+      gpuLimit,
+      jvmMemorySize,
+      shmSize,
+      "",
+      "kubernetes",
+      whid
+    );
   }
 
   /**
@@ -122,8 +146,12 @@ export class WorkflowComputingUnitManagingService {
    * @param uri The URI of the local computing unit.
    * @returns An Observable of the created WorkflowComputingUnit.
    */
-  public createLocalComputingUnit(name: string, uri: string): Observable<DashboardWorkflowComputingUnit> {
-    return this.createComputingUnit(name, "NaN", "NaN", "NaN", "NaN", "NaN", uri, "local");
+  public createLocalComputingUnit(
+    name: string,
+    uri: string,
+    whid?: number
+  ): Observable<DashboardWorkflowComputingUnit> {
+    return this.createComputingUnit(name, "NaN", "NaN", "NaN", "NaN", "NaN", uri, "local", whid);
   }
 
   /**

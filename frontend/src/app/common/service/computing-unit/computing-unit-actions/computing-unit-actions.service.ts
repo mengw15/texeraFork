@@ -37,6 +37,7 @@ export interface StartComputingUnitRequest {
   jvmMemorySize: string;
   shmSize: string;
   localUri: string;
+  whid?: number;
 }
 
 @Injectable({
@@ -74,12 +75,13 @@ export class ComputingUnitActionsService {
         request.memory,
         request.gpu,
         request.jvmMemorySize,
-        request.shmSize
+        request.shmSize,
+        request.whid
       );
     }
 
     if (request.type === "local") {
-      return this.computingUnitService.createLocalComputingUnit(request.name, request.localUri);
+      return this.computingUnitService.createLocalComputingUnit(request.name, request.localUri, request.whid);
     }
 
     throw new Error("Unsupported computing unit type");

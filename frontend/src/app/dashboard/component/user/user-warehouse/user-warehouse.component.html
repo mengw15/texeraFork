@@ -1,0 +1,208 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="warehouse-container">
+  <div class="warehouse-header">
+    <h2>Iceberg Warehouses</h2>
+    <button
+      *ngIf="byoEnabled && !formVisible"
+      nz-button
+      nzType="primary"
+      (click)="openForm()">
+      <span
+        nz-icon
+        nzType="plus"></span>
+      New Warehouse
+    </button>
+  </div>
+
+  <nz-spin [nzSpinning]="loading">
+    <ng-container *ngIf="!loading">
+      <!-- BYO disabled -->
+      <nz-alert
+        *ngIf="!byoEnabled"
+        nzType="info"
+        nzShowIcon
+        nzMessage="Using shared system warehouse"
+        nzDescription="This deployment runs in default storage mode. Workflow results are stored in the system-managed Iceberg warehouse and per-user S3 setup is disabled.">
+      </nz-alert>
+
+      <!-- BYO enabled, empty list, no form open -->
+      <nz-alert
+        *ngIf="byoEnabled && warehouses.length === 0 && !formVisible"
+        nzType="warning"
+        nzShowIcon
+        nzMessage="No warehouses configured"
+        nzDescription='Register at least one S3 bucket to create computing units. Click "New Warehouse" above to start. Credentials are forwarded to Lakekeeper and never stored by Texera.'
+        class="warehouse-alert">
+      </nz-alert>
+
+      <!-- Create form -->
+      <nz-card
+        *ngIf="byoEnabled && formVisible"
+        nzTitle="New Warehouse"
+        class="warehouse-form-card">
+        <form
+          nz-form
+          nzLayout="vertical">
+          <nz-form-item>
+            <nz-form-label nzRequired>Name</nz-form-label>
+            <nz-form-control
+              [nzErrorTip]="'1–64 chars, alphanumeric, dash or underscore. Starts with letter or digit.'"
+              [nzValidateStatus]="name.length === 0 || isNameValid() ? 'success' : 'error'">
+              <input
+                nz-input
+                [(ngModel)]="name"
+                name="name"
+                placeholder="prod-data" />
+            </nz-form-control>
+          </nz-form-item>
+
+          <nz-form-item>
+            <nz-form-label nzRequired>Storage Type</nz-form-label>
+            <nz-form-control>
+              <nz-radio-group
+                [(ngModel)]="flavor"
+                name="flavor"
+                (ngModelChange)="onFlavorChange()">
+                <label
+                  nz-radio
+                  nzValue="aws">AWS S3</label>
+                <label
+                  nz-radio
+                  nzValue="s3-compat">S3-compatible (MinIO, R2, …)</label>
+              </nz-radio-group>
+            </nz-form-control>
+          </nz-form-item>
+
+          <nz-form-item>
+            <nz-form-label nzRequired>S3 Bucket</nz-form-label>
+            <nz-form-control>
+              <input
+                nz-input
+                [(ngModel)]="s3Bucket"
+                name="s3Bucket"
+                placeholder="my-iceberg-bucket" />
+            </nz-form-control>
+          </nz-form-item>
+
+          <nz-form-item>
+            <nz-form-label nzRequired>Region</nz-form-label>
+            <nz-form-control>
+              <input
+                nz-input
+                [(ngModel)]="s3Region"
+                name="s3Region"
+                placeholder="us-west-2" />
+            </nz-form-control>
+          </nz-form-item>
+
+          <nz-form-item *ngIf="flavor === 's3-compat'">
+            <nz-form-label nzRequired>Endpoint</nz-form-label>
+            <nz-form-control nzExtra="The S3-compatible service URL (MinIO/R2/StorageGRID/…).">
+              <input
+                nz-input
+                [(ngModel)]="s3Endpoint"
+                name="s3Endpoint"
+                placeholder="https://my-minio.example.com:9000" />
+            </nz-form-control>
+          </nz-form-item>
+
+          <nz-form-item>
+            <nz-form-label nzRequired>Access Key ID</nz-form-label>
+            <nz-form-control>
+              <input
+                nz-input
+                [(ngModel)]="s3AccessKey"
+                name="s3AccessKey"
+                autocomplete="off" />
+            </nz-form-control>
+          </nz-form-item>
+
+          <nz-form-item>
+            <nz-form-label nzRequired>Secret Access Key</nz-form-label>
+            <nz-form-control>
+              <input
+                nz-input
+                type="password"
+                [(ngModel)]="s3SecretKey"
+                name="s3SecretKey"
+                autocomplete="off" />
+            </nz-form-control>
+          </nz-form-item>
+
+          <div class="warehouse-form-actions">
+            <button
+              nz-button
+              (click)="closeForm()">
+              Cancel
+            </button>
+            <button
+              nz-button
+              nzType="primary"
+              [nzLoading]="saving"
+              [disabled]="!canSubmit()"
+              (click)="submit()">
+              Create
+            </button>
+          </div>
+        </form>
+      </nz-card>
+
+      <!-- Existing warehouse list -->
+      <nz-table
+        *ngIf="byoEnabled && warehouses.length > 0"
+        [nzData]="warehouses"
+        nzSize="middle"
+        [nzShowPagination]="false"
+        class="warehouse-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>S3 Bucket</th>
+            <th>Region</th>
+            <th>Endpoint</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let w of warehouses">
+            <td>{{ w.name }}</td>
+            <td>{{ w.flavor === "aws" ? "AWS S3" : "S3-compatible" }}</td>
+            <td>{{ w.s3Bucket }}</td>
+            <td>{{ w.s3Region }}</td>
+            <td>{{ w.s3Endpoint || "—" }}</td>
+            <td>{{ w.createdAt }}</td>
+            <td>
+              <button
+                nz-button
+                nzDanger
+                nzSize="small"
+                (click)="confirmDelete(w)">
+                Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </ng-container>
+  </nz-spin>
+</div>

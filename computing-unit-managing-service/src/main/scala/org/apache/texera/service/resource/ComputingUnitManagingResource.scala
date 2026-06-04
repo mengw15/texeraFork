@@ -42,6 +42,7 @@ import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComput
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   ComputingUnitUserAccessDao,
   UserDao,
+  UserWarehouseDao,
   WorkflowComputingUnitDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
@@ -65,7 +66,7 @@ object ComputingUnitManagingResource {
       .getInstance()
       .createDSLContext()
 
-  private def icebergEnvironmentVariables: Map[String, Any] = {
+  private def icebergEnvironmentVariables(warehouseName: String): Map[String, Any] = {
     val base = Map[String, Any](
       EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType
     )
@@ -73,7 +74,7 @@ object ComputingUnitManagingResource {
       case "rest" =>
         base ++ Map(
           EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_URI -> StorageConfig.icebergRESTCatalogUri,
-          EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_WAREHOUSE_NAME -> StorageConfig.icebergRESTCatalogWarehouseName
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_WAREHOUSE_NAME -> warehouseName
         )
       case "postgres" =>
         base ++ Map(
@@ -85,9 +86,11 @@ object ComputingUnitManagingResource {
     }
   }
 
-  // Environment variables passed to the created computing unit(pod)
-  private lazy val computingUnitEnvironmentVariables: Map[String, Any] =
-    icebergEnvironmentVariables ++ Map(
+  // Environment variables passed to the created computing unit (pod). The
+  // Iceberg warehouse name is resolved per user when BYO-S3 is enabled, so
+  // this must be a def — not a lazy val — taking the resolved name.
+  private def computingUnitEnvironmentVariables(warehouseName: String): Map[String, Any] =
+    icebergEnvironmentVariables(warehouseName) ++ Map(
       // Variables for saving the metadata of the results, i.e. URIs of results/stats
       EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
       EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
@@ -131,7 +134,10 @@ object ComputingUnitManagingResource {
       gpuLimit: String,
       jvmMemorySize: String,
       shmSize: String,
-      uri: Option[String] = None
+      uri: Option[String] = None,
+      // Required when BYO-S3 mode is enabled and unitType is kubernetes:
+      // identifies which user_warehouse row to bind this CU to.
+      whid: Option[Int] = None
   )
 
   case class WorkflowComputingUnitResourceLimit(
@@ -376,6 +382,31 @@ class ComputingUnitManagingResource {
         throw InsufficientComputingUnitQuota(maxNumOfRunningComputingUnitsPerUser)
       }
 
+      // Resolve the Iceberg warehouse name to inject into the pod env. In
+      // BYO-S3 mode the user must pick one of their warehouses (registered
+      // via the Warehouse dashboard tab) and pass its whid here; we then
+      // verify ownership before using it. Outside BYO mode we fall back to
+      // the system warehouse name from storage.conf.
+      val warehouseName: String =
+        if (StorageConfig.icebergRESTCatalogByoS3) {
+          val whid = param.whid.getOrElse(
+            throw new BadRequestException(
+              "BYO-S3 is enabled — please select a warehouse for this computing unit. " +
+                "Register one in the Warehouse tab if you have none."
+            )
+          )
+          val userWarehouseDao = new UserWarehouseDao(ctx.configuration())
+          val userWarehouse = userWarehouseDao.fetchOneByWhid(whid)
+          if (userWarehouse == null || userWarehouse.getUid != user.getUid) {
+            throw new ForbiddenException(
+              s"Warehouse $whid not found or does not belong to you."
+            )
+          }
+          userWarehouse.getWarehouseName
+        } else {
+          StorageConfig.icebergRESTCatalogWarehouseName
+        }
+
       val resourceJson: String = cuType match {
         // ── Kubernetes CU ───────────────────────────────────────
         case WorkflowComputingUnitTypeEnum.kubernetes =>
@@ -454,7 +485,7 @@ class ComputingUnitManagingResource {
             param.cpuLimit,
             param.memoryLimit,
             param.gpuLimit,
-            computingUnitEnvironmentVariables ++ Map(
+            computingUnitEnvironmentVariables(warehouseName) ++ Map(
               EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
               EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
             ),
